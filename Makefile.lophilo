@@ -3,9 +3,9 @@
 # support CROSS_compile
 #include ../Makefile.common
 export CONCURRENCY_LEVEL=8
-export KBUILD_OUTPUT=../obj/linux
+export KBUILD_OUTPUT=../../obj/linux
 export ARCH:=arm
-export CROSS_COMPILE:=../codesourcery/arm926ej-s/
+export CROSS_COMPILE:=../../codesourcery/arm926ej-s/
 export IMAGE:=arch/arm/boot/uImage
 export MINIMAL_IMAGE:=arch/arm/boot/xipImage
 #export IMAGE:=vmlinux
@@ -21,6 +21,9 @@ export IMAGE_BACKUP:=${HOME}/lophilo-bin/linux/versatilepb/${IMAGE_FILENAME}.${A
 export IMAGE_LATEST:=${HOME}/lophilo-bin/linux/versatilepb/${IMAGE_FILENAME}.${ARCH}.latest
 
 .PHONY: clean config menuconfig version kernel debian install-debian install-squeeze1 backup
+
+all:
+	echo `dirname ${CROSS_COMPILE}`
 
 config:
 	make ARCH=arm at91sam9g45_defconfig
@@ -76,9 +79,11 @@ minimal_config:
 	make ARCH=arm KCONFIG_CONFIG=lophilo_minimal_boot.config oldconfig
 
 minimal_menuconfig:
-	make ARCH=arm KCONFIG_CONFIG=lophilo_minimal_boot.config menuconfig
+	mkdir -p ${KBUILD_OUTPUT}
+	make ARCH=arm KCONFIG_CONFIG=`pwd`/lophilo_minimal_boot.config menuconfig
 
 minimal_kernel: ${MINIMAL_IMAGE}
 
-${MINIMAL_IMAGE}: .config
-	time make xipImage V=1 KCONFIG_CONFIG=lophilo_minimal_boot.config
+${MINIMAL_IMAGE}: lophilo_minimal_boot.config
+	mkdir -p ${KBUILD_OUTPUT}
+	time make xipImage V=1 KCONFIG_CONFIG=`pwd`/lophilo_minimal_boot.config
