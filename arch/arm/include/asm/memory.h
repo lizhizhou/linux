@@ -141,6 +141,14 @@
 #define page_to_phys(page)	(__pfn_to_phys(page_to_pfn(page)))
 #define phys_to_page(phys)	(pfn_to_page(__phys_to_pfn(phys)))
 
+#ifndef PHYS_OFFSET
+#ifdef PLAT_PHYS_OFFSET
+#define PHYS_OFFSET PLAT_PHYS_OFFSET
+#else
+#define PHYS_OFFSET UL(CONFIG_PHYS_OFFSET)
+#endif
+#endif
+
 #ifndef __ASSEMBLY__
 
 /*
