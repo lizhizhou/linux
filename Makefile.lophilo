@@ -7,7 +7,8 @@ export KBUILD_OUTPUT=../../obj/linux
 export ARCH:=arm
 export CROSS_COMPILE:=../../codesourcery/arm926ej-s/
 export IMAGE:=arch/arm/boot/uImage
-export MINIMAL_IMAGE:=arch/arm/boot/xipImage
+export STANDARD_IMAGE:=arch/arm/boot/zImage
+export XIP_IMAGE:=arch/arm/boot/xipImage
 #export IMAGE:=vmlinux
 export IMAGE_FILENAME:=$(shell basename ${IMAGE})
 
@@ -73,17 +74,32 @@ install-squeeze1: ../kernel-latest-build.txt
 	cd ..; sudo cp `cat kernel-latest-build.txt` /exports/squeeze/root
 	@echo "as root@squeeze1, install with:  dpkg -i --ignore-depends=libtinfo5 \`cat kernel-latest-build.txt\`"
 
-# minimal configuration for XIP flash boot
-minimal_config:
+# xip configuration for XIP flash boot
+xip_config:
 	mkdir -p ${KBUILD_OUTPUT}
-	make ARCH=arm KCONFIG_CONFIG=lophilo_minimal_boot.config oldconfig
+	make ARCH=arm KCONFIG_CONFIG=lophilo_xip_boot.config oldconfig
 
-minimal_menuconfig:
+xip_menuconfig:
 	mkdir -p ${KBUILD_OUTPUT}
-	make ARCH=arm KCONFIG_CONFIG=`pwd`/lophilo_minimal_boot.config menuconfig
+	make ARCH=arm KCONFIG_CONFIG=`pwd`/lophilo_xip_boot.config menuconfig
 
-minimal_kernel: ${MINIMAL_IMAGE}
+xip_kernel: ${XIP_IMAGE}
 
-${MINIMAL_IMAGE}: lophilo_minimal_boot.config
+${XIP_IMAGE}: lophilo_xip_boot.config
 	mkdir -p ${KBUILD_OUTPUT}
-	time make xipImage V=1 KCONFIG_CONFIG=`pwd`/lophilo_minimal_boot.config
+	time make xipImage V=1 KCONFIG_CONFIG=`pwd`/lophilo_xip_boot.config
+	
+# xip configuration for XIP flash boot
+standard_config:
+	mkdir -p ${KBUILD_OUTPUT}
+	make ARCH=arm KCONFIG_CONFIG=lophilo_boot.config oldconfig
+
+standard_menuconfig:
+	mkdir -p ${KBUILD_OUTPUT}
+	make ARCH=arm KCONFIG_CONFIG=`pwd`/lophilo_boot.config menuconfig
+
+standard_kernel: ${STANDARD_IMAGE}
+
+${STANDARD_IMAGE}: lophilo_boot.config
+	mkdir -p ${KBUILD_OUTPUT}
+	time make xipImage V=1 KCONFIG_CONFIG=`pwd`/lophilo_boot.config
