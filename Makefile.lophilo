@@ -11,6 +11,7 @@ export STANDARD_IMAGE:=arch/arm/boot/zImage
 export XIP_IMAGE:=arch/arm/boot/xipImage
 #export IMAGE:=vmlinux
 export IMAGE_FILENAME:=$(shell basename ${IMAGE})
+export TARGET_ARCHIVE:=`date +%Y%m%d%H%M`
 
 export NOW:=$(shell date +%Y%m%d-%s)
 export VERSION:=$(shell make kernelversion)
@@ -21,7 +22,7 @@ export BUILD_DIR:=/exports/squeeze/lib/modules/${KERNELVERSION}/build
 export IMAGE_BACKUP:=${HOME}/lophilo-bin/linux/versatilepb/${IMAGE_FILENAME}.${ARCH}.${VERSION}.${NOW}
 export IMAGE_LATEST:=${HOME}/lophilo-bin/linux/versatilepb/${IMAGE_FILENAME}.${ARCH}.latest
 
-.PHONY: clean config menuconfig version kernel debian install-debian install-squeeze1 backup
+.PHONY: clean config menuconfig version kernel debian install-debian install-squeeze1 backup archive-source archive-image
 
 all:
 	echo `dirname ${CROSS_COMPILE}`
@@ -103,3 +104,15 @@ standard_kernel: ${STANDARD_IMAGE}
 ${STANDARD_IMAGE}: lophilo_boot.config
 	mkdir -p ${KBUILD_OUTPUT}
 	time make zImage V=1 KCONFIG_CONFIG=`pwd`/lophilo_boot.config
+
+archive-image:
+	sudo mount -t vfat /dev/sdb1 /mnt/usb
+	sudo mkdir -p /mnt/usb/${TARGET_ARCHIVE} 
+	sudo cp ../../obj/linux/arch/arm/boot/zImage /mnt/usb/${TARGET_ARCHIVE}
+	sudo umount /mnt/usb
+
+archive-source:
+	sudo mount -t vfat /dev/sdb1 /mnt/usb
+	git archive HEAD --format=zip > ~/linux-src-${TARGET_ARCHIVE}.zip
+	sudo mv ~/linux-src-${TARGET_ARCHIVE} /mnt/usb/${TARGET_ARCHIVE}
+	sudo umount /mnt/usb
