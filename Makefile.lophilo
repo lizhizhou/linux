@@ -102,4 +102,4 @@ standard_kernel: ${STANDARD_IMAGE}
 
 ${STANDARD_IMAGE}: lophilo_boot.config
 	mkdir -p ${KBUILD_OUTPUT}
-	time make xipImage V=1 KCONFIG_CONFIG=`pwd`/lophilo_boot.config
+	time make zImage V=1 KCONFIG_CONFIG=`pwd`/lophilo_boot.config
