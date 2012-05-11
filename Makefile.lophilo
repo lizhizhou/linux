@@ -1,7 +1,12 @@
+#
+# Customized build instructions for Lophilo
+# We assume that this is checked out as a Lophilo/ submodule in upstream/
+#
 #export LOPHILO_TARGET_ARCH:=arm
 # we don't use the Makefile.common since kernel compile
 # support CROSS_compile
 #include ../Makefile.common
+include ../../Makefile.microsd
 export CONCURRENCY_LEVEL=8
 export KBUILD_OUTPUT=../../obj/linux
 export ARCH:=arm
@@ -112,15 +117,6 @@ ${STANDARD_IMAGE}: lophilo_boot.config
 #
 # see: https://github.com/Lophilo/lophilo/blob/master/docs/microsd.md
 #
-/usr/bin/pmount:
-	sudo apt-get install usbmount
-
-/media/lophilofat32: /usr/bin/pmount
-	pmount /dev/sdb1 lophilofat32
-
-/media/lophiloext4: /usr/bin/pmount
-	pmount /dev/sdb2 lophiloext4
-
 linux-src.zip: ${STANDARD_IMAGE}
 	git archive HEAD --format=zip > $@
 
