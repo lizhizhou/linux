@@ -134,71 +134,6 @@ static struct macb_platform_data __initdata ek_macb_data = {
 };
 
 /*
- *  ISI
- */
-static struct isi_platform_data __initdata isi_data = {
-	.frate			= ISI_CFG1_FRATE_CAPTURE_ALL,
-	/* to use codec and preview path simultaneously */
-	.full_mode		= 1,
-	.data_width_flags	= ISI_DATAWIDTH_8 | ISI_DATAWIDTH_10,
-	/* ISI_MCK is provided by programmable clock or external clock */
-	.mck_hz			= 25000000,
-};
-
-
-/*
- * soc-camera OV2640
- */
-#if defined(CONFIG_SOC_CAMERA_OV2640) || \
-	defined(CONFIG_SOC_CAMERA_OV2640_MODULE)
-static unsigned long isi_camera_query_bus_param(struct soc_camera_link *link)
-{
-	/* ISI board for ek using default 8-bits connection */
-	return SOCAM_DATAWIDTH_8;
-}
-
-static int i2c_camera_power(struct device *dev, int on)
-{
-	/* enable or disable the camera */
-	pr_debug("%s: %s the camera\n", __func__, on ? "ENABLE" : "DISABLE");
-	at91_set_gpio_output(AT91_PIN_PD13, !on);
-
-	if (!on)
-		goto out;
-
-	/* If enabled, give a reset impulse */
-	at91_set_gpio_output(AT91_PIN_PD12, 0);
-	msleep(20);
-	at91_set_gpio_output(AT91_PIN_PD12, 1);
-	msleep(100);
-
-out:
-	return 0;
-}
-
-static struct i2c_board_info i2c_camera = {
-	I2C_BOARD_INFO("ov2640", 0x30),
-};
-
-static struct soc_camera_link iclink_ov2640 = {
-	.bus_id			= 0,
-	.board_info		= &i2c_camera,
-	.i2c_adapter_id		= 0,
-	.power			= i2c_camera_power,
-	.query_bus_param	= isi_camera_query_bus_param,
-};
-
-static struct platform_device isi_ov2640 = {
-	.name	= "soc-camera-pdrv",
-	.id	= 0,
-	.dev	= {
-		.platform_data = &iclink_ov2640,
-	},
-};
-#endif
-
-
-/*
  * LCD Controller
  */
 #if defined(CONFIG_FB_ATMEL) || defined(CONFIG_FB_ATMEL_MODULE)
@@ -293,16 +228,12 @@ static struct gpio_led ek_pwm_led[] = {
 		.name			= "d7",
 		.gpio			= 1,	/* is PWM channel number */
 		.active_low		= 1,
-		.default_trigger	= "none",
+		.default_trigger	= "mmc1",
 	},
 #endif
 };
 
 static struct platform_device *devices[] __initdata = {
-#if defined(CONFIG_SOC_CAMERA_OV2640) || \
-	defined(CONFIG_SOC_CAMERA_OV2640_MODULE)
-	&isi_ov2640,
-#endif
 };
 
 static void __init ek_board_init(void)
@@ -315,20 +246,20 @@ static void __init ek_board_init(void)
 	/* USB HS Device */
 	at91_add_device_usba(&ek_usba_udc_data);
 	/* SPI */
-	at91_add_device_spi(ek_spi_devices, ARRAY_SIZE(ek_spi_devices));
+//	at91_add_device_spi(ek_spi_devices, ARRAY_SIZE(ek_spi_devices));
 	/* MMC */
 	at91_add_device_mci(0, &mci0_data);
 	at91_add_device_mci(1, &mci1_data);
 	/* Ethernet */
 	at91_add_device_eth(&ek_macb_data);
 	/* I2C */
-	at91_add_device_i2c(0, NULL, 0);
+//	at91_add_device_i2c(0, NULL, 0);
 	/* ISI, using programmable clock as ISI_MCK */
-	at91_add_device_isi(&isi_data, true);
+//	at91_add_device_isi(&isi_data, true);
 	/* LCD Controller */
-	at91_add_device_lcdc(&ek_lcdc_data);
+//	at91_add_device_lcdc(&ek_lcdc_data);
 	/* AC97 */
-	at91_add_device_ac97(&ek_ac97_data);
+//	at91_add_device_ac97(&ek_ac97_data);
 	/* LEDs */
 	at91_gpio_leds(ek_leds, ARRAY_SIZE(ek_leds));
 	at91_pwm_leds(ek_pwm_led, ARRAY_SIZE(ek_pwm_led));
