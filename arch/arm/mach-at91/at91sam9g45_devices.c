@@ -1611,10 +1611,10 @@ static inline void configure_usart1_pins(unsigned pins)
 	at91_set_A_periph(AT91_PIN_PB4, 1);		/* TXD1 */
 	at91_set_A_periph(AT91_PIN_PB5, 0);		/* RXD1 */
 
-	if (pins & ATMEL_UART_RTS)
-		at91_set_A_periph(AT91_PIN_PD16, 0);	/* RTS1 */
-	if (pins & ATMEL_UART_CTS)
-		at91_set_A_periph(AT91_PIN_PD17, 0);	/* CTS1 */
+//	if (pins & ATMEL_UART_RTS)
+//		at91_set_A_periph(AT91_PIN_PD16, 0);	/* RTS1 */
+//	if (pins & ATMEL_UART_CTS)
+//		at91_set_A_periph(AT91_PIN_PD17, 0);	/* CTS1 */
 }
 
 static struct resource uart2_resources[] = {
