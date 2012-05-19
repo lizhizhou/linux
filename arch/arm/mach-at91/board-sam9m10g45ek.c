@@ -59,18 +59,25 @@ static void __init ek_init_early(void)
 
 	/* USART0 not connected on the -EK board */
 	/* USART1 on ttyS2. (Rx, Tx, RTS, CTS) */
-	at91_register_uart(AT91SAM9G45_ID_US1, 2, ATMEL_UART_CTS | ATMEL_UART_RTS);
+	at91_register_uart(AT91SAM9G45_ID_US1, 2, 0);
 
 	/* set serial console to ttyS0 (ie, DBGU) */
-	at91_set_serial_console(0);
+	//at91_set_serial_console(0);
+	at91_set_serial_console(2);
 }
 
 /*
  * USB HS Host port (common to OHCI & EHCI)
  */
 static struct at91_usbh_data __initdata ek_usbh_hs_data = {
+	//.ports		= 1,
+	//.vbus_pin	= {AT91_PIN_PD2},
+	//.vbus_pin_active_low = {1},
+	//.overcurrent_pin= {-EINVAL},
+	//.overcurrent_pin= {AT91_PIN_PD1},
+
 	.ports		= 2,
-	.vbus_pin	= {AT91_PIN_PD1, AT91_PIN_PD3},
+	.vbus_pin	= {AT91_PIN_PD2, -EINVAL},
 	.vbus_pin_active_low = {1, 1},
 	.overcurrent_pin= {-EINVAL, -EINVAL},
 };
@@ -80,7 +87,7 @@ static struct at91_usbh_data __initdata ek_usbh_hs_data = {
  * USB HS Device port
  */
 static struct usba_platform_data __initdata ek_usba_udc_data = {
-	.vbus_pin	= AT91_PIN_PB19,
+	.vbus_pin	= AT91_PIN_PD4,
 };
 
 
@@ -88,10 +95,10 @@ static struct usba_platform_data __initdata ek_usba_udc_data = {
  * SPI devices.
  */
 static struct spi_board_info ek_spi_devices[] = {
-	{	/* DataFlash chip */
-		.modalias	= "mtd_dataflash",
+	{	/* SPI chip */
+		.modalias	= "mtd_25lv",
 		.chip_select	= 0,
-		.max_speed_hz	= 15 * 1000 * 1000,
+		.max_speed_hz	= 50 * 1000 * 1000,
 		.bus_num	= 0,
 	},
 };
@@ -103,16 +110,17 @@ static struct spi_board_info ek_spi_devices[] = {
 static struct mci_platform_data __initdata mci0_data = {
 	.slot[0] = {
 		.bus_width	= 4,
-		.detect_pin	= AT91_PIN_PD10,
+		.detect_pin	= AT91_PIN_PA6,//-EINVAL,//AT91_PIN_PD10,
 		.wp_pin		= -EINVAL,
 	},
 };
 
 static struct mci_platform_data __initdata mci1_data = {
 	.slot[0] = {
-		.bus_width	= 4,
-		.detect_pin	= AT91_PIN_PD11,
-		.wp_pin		= AT91_PIN_PD29,
+		.bus_width	= 1,
+		.detect_pin	= AT91_PIN_PD17,
+		//.wp_pin		= -EINVAL,
+		.wp_pin		= AT91_PIN_PD16,
 	},
 };
 
@@ -121,73 +129,9 @@ static struct mci_platform_data __initdata mci1_data = {
  * MACB Ethernet device
  */
 static struct macb_platform_data __initdata ek_macb_data = {
-	.phy_irq_pin	= AT91_PIN_PD5,
+	.phy_irq_pin	= AT91_PIN_PD15,
 	.is_rmii	= 1,
 };
-
-
-/*
- * NAND flash
- */
-static struct mtd_partition __initdata ek_nand_partition[] = {
-	{
-		.name	= "Partition 1",
-		.offset	= 0,
-		.size	= SZ_64M,
-	},
-	{
-		.name	= "Partition 2",
-		.offset	= MTDPART_OFS_NXTBLK,
-		.size	= MTDPART_SIZ_FULL,
-	},
-};
-
-/* det_pin is not connected */
-static struct atmel_nand_data __initdata ek_nand_data = {
-	.ale		= 21,
-	.cle		= 22,
-	.rdy_pin	= AT91_PIN_PC8,
-	.enable_pin	= AT91_PIN_PC14,
-	.det_pin	= -EINVAL,
-	.ecc_mode	= NAND_ECC_SOFT,
-	.on_flash_bbt	= 1,
-	.parts		= ek_nand_partition,
-	.num_parts	= ARRAY_SIZE(ek_nand_partition),
-};
-
-static struct sam9_smc_config __initdata ek_nand_smc_config = {
-	.ncs_read_setup		= 0,
-	.nrd_setup		= 2,
-	.ncs_write_setup	= 0,
-	.nwe_setup		= 2,
-
-	.ncs_read_pulse		= 4,
-	.nrd_pulse		= 4,
-	.ncs_write_pulse	= 4,
-	.nwe_pulse		= 4,
-
-	.read_cycle		= 7,
-	.write_cycle		= 7,
-
-	.mode			= AT91_SMC_READMODE | AT91_SMC_WRITEMODE | AT91_SMC_EXNWMODE_DISABLE,
-	.tdf_cycles		= 3,
-};
-
-static void __init ek_add_device_nand(void)
-{
-	ek_nand_data.bus_width_16 = board_have_nand_16bit();
-	/* setup bus-width (8 or 16) */
-	if (ek_nand_data.bus_width_16)
-		ek_nand_smc_config.mode |= AT91_SMC_DBW_16;
-	else
-		ek_nand_smc_config.mode |= AT91_SMC_DBW_8;
-
-	/* configure chip-select 3 (NAND) */
-	sam9_smc_configure(0, 3, &ek_nand_smc_config);
-
-	at91_add_device_nand(&ek_nand_data);
-}
-
 
 /*
  *  ISI
@@ -305,99 +249,6 @@ static struct atmel_lcdfb_info __initdata ek_lcdc_data = {
 static struct atmel_lcdfb_info __initdata ek_lcdc_data;
 #endif
 
-
-/*
- * Touchscreen
- */
-static struct at91_tsadcc_data ek_tsadcc_data = {
-	.adc_clock		= 300000,
-	.pendet_debounce	= 0x0d,
-	.ts_sample_hold_time	= 0x0a,
-};
-
-
-/*
- * GPIO Buttons
- */
-#if defined(CONFIG_KEYBOARD_GPIO) || defined(CONFIG_KEYBOARD_GPIO_MODULE)
-static struct gpio_keys_button ek_buttons[] = {
-	{	/* BP1, "leftclic" */
-		.code		= BTN_LEFT,
-		.gpio		= AT91_PIN_PB6,
-		.active_low	= 1,
-		.desc		= "left_click",
-		.wakeup		= 1,
-	},
-	{	/* BP2, "rightclic" */
-		.code		= BTN_RIGHT,
-		.gpio		= AT91_PIN_PB7,
-		.active_low	= 1,
-		.desc		= "right_click",
-		.wakeup		= 1,
-	},
-		/* BP3, "joystick" */
-	{
-		.code		= KEY_LEFT,
-		.gpio		= AT91_PIN_PB14,
-		.active_low	= 1,
-		.desc		= "Joystick Left",
-	},
-	{
-		.code		= KEY_RIGHT,
-		.gpio		= AT91_PIN_PB15,
-		.active_low	= 1,
-		.desc		= "Joystick Right",
-	},
-	{
-		.code		= KEY_UP,
-		.gpio		= AT91_PIN_PB16,
-		.active_low	= 1,
-		.desc		= "Joystick Up",
-	},
-	{
-		.code		= KEY_DOWN,
-		.gpio		= AT91_PIN_PB17,
-		.active_low	= 1,
-		.desc		= "Joystick Down",
-	},
-	{
-		.code		= KEY_ENTER,
-		.gpio		= AT91_PIN_PB18,
-		.active_low	= 1,
-		.desc		= "Joystick Press",
-	},
-};
-
-static struct gpio_keys_platform_data ek_button_data = {
-	.buttons	= ek_buttons,
-	.nbuttons	= ARRAY_SIZE(ek_buttons),
-};
-
-static struct platform_device ek_button_device = {
-	.name		= "gpio-keys",
-	.id		= -1,
-	.num_resources	= 0,
-	.dev		= {
-		.platform_data	= &ek_button_data,
-	}
-};
-
-static void __init ek_add_device_buttons(void)
-{
-	int i;
-
-	for (i = 0; i < ARRAY_SIZE(ek_buttons); i++) {
-		at91_set_GPIO_periph(ek_buttons[i].gpio, 1);
-		at91_set_deglitch(ek_buttons[i].gpio, 1);
-	}
-
-	platform_device_register(&ek_button_device);
-}
-#else
-static void __init ek_add_device_buttons(void) {}
-#endif
-
-
 /*
  * AC97
  * reset_pin is not connected: NRST
@@ -413,19 +264,19 @@ static struct ac97c_platform_data ek_ac97_data = {
 static struct gpio_led ek_leds[] = {
 	{	/* "top" led, red, powerled */
 		.name			= "d8",
-		.gpio			= AT91_PIN_PD30,
+		.gpio			= AT91_PIN_PD24,
 		.default_trigger	= "heartbeat",
 	},
 	{	/* "left" led, green, userled2, pwm3 */
 		.name			= "d6",
-		.gpio			= AT91_PIN_PD0,
+		.gpio			= AT91_PIN_PD27,
 		.active_low		= 1,
-		.default_trigger	= "nand-disk",
+		.default_trigger	= "heartbeat",
 	},
 #if !(defined(CONFIG_LEDS_ATMEL_PWM) || defined(CONFIG_LEDS_ATMEL_PWM_MODULE))
 	{	/* "right" led, green, userled1, pwm1 */
 		.name			= "d7",
-		.gpio			= AT91_PIN_PD31,
+		.gpio			= AT91_PIN_PD26,
 		.active_low		= 1,
 		.default_trigger	= "mmc0",
 	},
@@ -470,18 +321,12 @@ static void __init ek_board_init(void)
 	at91_add_device_mci(1, &mci1_data);
 	/* Ethernet */
 	at91_add_device_eth(&ek_macb_data);
-	/* NAND */
-	ek_add_device_nand();
 	/* I2C */
 	at91_add_device_i2c(0, NULL, 0);
 	/* ISI, using programmable clock as ISI_MCK */
 	at91_add_device_isi(&isi_data, true);
 	/* LCD Controller */
 	at91_add_device_lcdc(&ek_lcdc_data);
-	/* Touch Screen */
-	at91_add_device_tsadcc(&ek_tsadcc_data);
-	/* Push Buttons */
-	ek_add_device_buttons();
 	/* AC97 */
 	at91_add_device_ac97(&ek_ac97_data);
 	/* LEDs */
@@ -491,7 +336,7 @@ static void __init ek_board_init(void)
 	platform_add_devices(devices, ARRAY_SIZE(devices));
 }
 
-MACHINE_START(AT91SAM9M10G45EK, "Atmel AT91SAM9M10G45-EK")
+MACHINE_START(AT91SAM9M10G45EK, "Lophilo")
 	/* Maintainer: Atmel */
 	.timer		= &at91sam926x_timer,
 	.map_io		= at91_map_io,
