@@ -125,12 +125,12 @@ ${STANDARD_IMAGE}: lophilo_boot.config
 #
 # see: https://github.com/Lophilo/lophilo/blob/master/docs/microsd.md
 #
-linux-src.zip: ${STANDARD_IMAGE}
+${KBUILD_OUTPUT}/linux-src.zip: ${STANDARD_IMAGE}
 	git archive HEAD --format=zip > $@
 
 setup-microsd-mount: /media/lophilofat32 /media/lophiloext4
 
-/media/lophilofat32/linux-src.zip: setup-microsd-mount linux-src.zip 
+/media/lophilofat32/linux-src.zip: setup-microsd-mount ${KBUILD_OUTPUT}/linux-src.zip 
 	cp linux-src.zip $@
 
 setup-microsd-copyimg: ${STANDARD_IMAGE} setup-microsd-mount 
