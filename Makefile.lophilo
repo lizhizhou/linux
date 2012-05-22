@@ -2,41 +2,137 @@
 # Customized build instructions for Lophilo
 # We assume that this is checked out as a Lophilo/ submodule in upstream/
 #
-#export LOPHILO_TARGET_ARCH:=arm
-# we don't use the Makefile.common since kernel compile
-# support CROSS_compile
-#include ../Makefile.common
 include ../../Makefile.microsd
-export CONCURRENCY_LEVEL=8
+
+#
+# Some constants used further below
+#
 export LINUX_DIRNAME=$(shell basename `pwd`)
+export KERNELVERSION:=$(shell make kernelversion)
+
+#
+# Kernel build variables
+# 
+export CONCURRENCY_LEVEL=8
 export KBUILD_OUTPUT=../../obj/${LINUX_DIRNAME}
 export ARCH:=arm
 export CROSS_COMPILE:=../../codesourcery/arm926ej-s/
-export IMAGE:=arch/arm/boot/uImage
+#export IMAGE:=arch/arm/boot/uImage
+
+#
+# Output variables
+#
 export STANDARD_IMAGE_FN:=zImage
 export STANDARD_IMAGE:=${KBUILD_OUTPUT}/arch/arm/boot/${STANDARD_IMAGE_FN}
 export XIP_IMAGE:=arch/arm/boot/xipImage
-#export IMAGE:=vmlinux
 export IMAGE_FILENAME:=$(shell basename ${IMAGE})
 export TARGET_ARCHIVE:=`date +%Y%m%d%H%M`
 
-export NFSROOT:=${HOME}/lophilo-OS.nfs
+#
+# Installation related variables
+#
+export TARGET_NFS_INSTALL_DIR:=${HOME}/lophilo-OS.nfs
+export TARGET_INSTALL_DIR:=${HOME}/current_image
 
 export NOW:=$(shell date +%Y%m%d-%s)
-export VERSION:=$(shell make kernelversion)
 export INSTALL_MOD_PATH:=/exports/squeeze
 export INSTALL_HDR_PATH:=/exports/squeeze/usr/include/linux 
-export KERNELVERSION:=`make -s kernelversion`
 export BUILD_DIR:=/exports/squeeze/lib/modules/${KERNELVERSION}/build
-export IMAGE_BACKUP:=${HOME}/lophilo-bin/linux/versatilepb/${IMAGE_FILENAME}.${ARCH}.${VERSION}.${NOW}
-export IMAGE_LATEST:=${HOME}/lophilo-bin/linux/versatilepb/${IMAGE_FILENAME}.${ARCH}.latest
+
+#
+# Other programs
+#
 export RSYNC:=rsync -avz --exclude="*.log" --exclude="*.pid" --exclude="*.leases" --exclude="var/log/*" --delete
+
+
+#
+# DEPRECATED
+#
+export IMAGE_BACKUP:=${HOME}/lophilo-bin/linux/versatilepb/${IMAGE_FILENAME}.${ARCH}.${KERNELVERSION}.${NOW}
+export IMAGE_LATEST:=${HOME}/lophilo-bin/linux/versatilepb/${IMAGE_FILENAME}.${ARCH}.latest
 
 .PHONY: clean config menuconfig version kernel debian install-debian install-squeeze1 backup archive-source archive-image
 
 all:
 	echo `dirname ${CROSS_COMPILE}`
 
+standard_config:
+	mkdir -p ${KBUILD_OUTPUT}
+	make ARCH=arm KCONFIG_CONFIG=lophilo_boot.config oldconfig
+
+standard_menuconfig:
+	mkdir -p ${KBUILD_OUTPUT}
+	make ARCH=arm KCONFIG_CONFIG=`pwd`/lophilo_boot.config menuconfig
+
+standard_modules: lophilo_boot.config ${KBUILD_OUTPUT}/modules.order
+
+${KBUILD_OUTPUT}/modules.order: lophilo_boot.config
+	make modules V=1 KCONFIG_CONFIG=`pwd`/lophilo_boot.config
+
+standard_kernel: ${STANDARD_IMAGE} standard_modules
+
+${STANDARD_IMAGE}: lophilo_boot.config
+	mkdir -p ${KBUILD_OUTPUT}
+	time make zImage V=1 KCONFIG_CONFIG=`pwd`/lophilo_boot.config
+
+#
+# steps to prepare the MicroSD card for boot
+#
+# we're assuming it's correctly partionned at this step
+#
+# see: https://github.com/Lophilo/lophilo/blob/master/docs/microsd.md
+#
+${KBUILD_OUTPUT}/linux-src.zip: ${STANDARD_IMAGE}
+	git archive HEAD --format=zip > $@
+
+setup-microsd-mount: /media/lophilofat32 /media/lophiloext4
+
+/media/lophilofat32/linux-src.zip: setup-microsd-mount ${KBUILD_OUTPUT}/linux-src.zip 
+	cp linux-src.zip $@
+
+setup-microsd-copyimg: ${STANDARD_IMAGE} setup-microsd-mount 
+	-mv /media/lophilofat32/${STANDARD_IMAGE_FN} /media/lophilofat32/${STANDARD_IMAGE_FN}.${NOW}
+	cp ${STANDARD_IMAGE} /media/lophilofat32
+
+setup-microsd-modules: standard_modules
+	sudo make modules_install INSTALL_MOD_PATH=/home/rngadam/lophilo-OS
+
+setup-microsd-syncos: setup-microsd-modules
+	sudo ${RSYNC} ${HOME}/lophilo-OS/ /media/lophiloext4/
+
+setup-microsd: setup-microsd-copyimg setup-microsd-syncos /media/lophilofat32/linux-src.zip
+	pumount /dev/sdb1
+	pumount /dev/sdb2
+	eject /dev/sdb
+
+#
+# steps to backup changes from MicroSD card
+#
+backup-microsd-syncos: 
+	mkdir -p ${HOME}/lophilo-OS.${NOW}
+	sudo ${RSYNC} ${HOME}/lophilo-OS ${HOME}/lophilo-OS.${NOW}	
+	sudo ${RSYNC} /media/lophiloext4 ${HOME}/lophilo-OS 
+
+backup-microsd: setup-microsd-mount backup-microsd-syncos
+	pumount /dev/sdb1
+	pumount /dev/sdb2
+	sudo eject /dev/sdb
+
+#
+# setup TARGET_INSTALL_DIR
+#
+setup-target-dir: ${STANDARD_IMAGE} standard_modules
+	# TODO: doesn't work... tries to restart the install
+	cp ${STANDARD_IMAGE} ${TARGET_INSTALL_DIR}/${STANDARD_IMAGE_FN}
+	make modules_install INSTALL_MOD_PATH=${TARGET_INSTALL_DIR} KCONFIG_CONFIG=`pwd`/lophilo_boot.config
+
+setup-nfs-dir: setup-target-dir
+	sudo cp ${TARGET_INSTALL_DIR}/${STANDARD_IMAGE_FN} ${TARGET_NFS_INSTALL_DIR}
+	sudo cp -r ${TARGET_INSTALL_DIR}/lib ${TARGET_NFS_INSTALL_DIR}
+
+#
+# DEPRECATED: for future reference only
+#
 config:
 	make ARCH=arm at91sam9g45_defconfig
 
@@ -101,69 +197,3 @@ ${XIP_IMAGE}: lophilo_xip_boot.config
 	time make xipImage V=1 KCONFIG_CONFIG=`pwd`/lophilo_xip_boot.config
 	
 # xip configuration for XIP flash boot
-standard_config:
-	mkdir -p ${KBUILD_OUTPUT}
-	make ARCH=arm KCONFIG_CONFIG=lophilo_boot.config oldconfig
-
-standard_menuconfig:
-	mkdir -p ${KBUILD_OUTPUT}
-	make ARCH=arm KCONFIG_CONFIG=`pwd`/lophilo_boot.config menuconfig
-
-standard_modules: lophilo_boot.config
-	time make modules V=1 KCONFIG_CONFIG=`pwd`/lophilo_boot.config
-
-standard_kernel: ${STANDARD_IMAGE} standard_modules
-
-${STANDARD_IMAGE}: lophilo_boot.config
-	mkdir -p ${KBUILD_OUTPUT}
-	time make zImage V=1 KCONFIG_CONFIG=`pwd`/lophilo_boot.config
-
-#
-# steps to prepare the MicroSD card for boot
-#
-# we're assuming it's correctly partionned at this step
-#
-# see: https://github.com/Lophilo/lophilo/blob/master/docs/microsd.md
-#
-${KBUILD_OUTPUT}/linux-src.zip: ${STANDARD_IMAGE}
-	git archive HEAD --format=zip > $@
-
-setup-microsd-mount: /media/lophilofat32 /media/lophiloext4
-
-/media/lophilofat32/linux-src.zip: setup-microsd-mount ${KBUILD_OUTPUT}/linux-src.zip 
-	cp linux-src.zip $@
-
-setup-microsd-copyimg: ${STANDARD_IMAGE} setup-microsd-mount 
-	-mv /media/lophilofat32/${STANDARD_IMAGE_FN} /media/lophilofat32/${STANDARD_IMAGE_FN}.${NOW}
-	cp ${STANDARD_IMAGE} /media/lophilofat32
-
-setup-microsd-modules: standard_modules
-	sudo make modules_install INSTALL_MOD_PATH=/home/rngadam/lophilo-OS
-
-setup-microsd-syncos: setup-microsd-modules
-	sudo ${RSYNC} ${HOME}/lophilo-OS/ /media/lophiloext4/
-
-setup-microsd: setup-microsd-copyimg setup-microsd-syncos /media/lophilofat32/linux-src.zip
-	pumount /dev/sdb1
-	pumount /dev/sdb2
-	eject /dev/sdb
-
-#
-# steps to backup changes from MicroSD card
-#
-backup-microsd-syncos: 
-	mkdir -p ${HOME}/lophilo-OS.${NOW}
-	sudo ${RSYNC} ${HOME}/lophilo-OS ${HOME}/lophilo-OS.${NOW}	
-	sudo ${RSYNC} /media/lophiloext4 ${HOME}/lophilo-OS 
-
-backup-microsd: setup-microsd-mount backup-microsd-syncos
-	pumount /dev/sdb1
-	pumount /dev/sdb2
-	sudo eject /dev/sdb
-
-#
-# setup NFSROOT
-#
-setup-nfsroot: standard_modules
-	# TODO: doesn't work... tries to restart the install
-	sudo make all INSTALL_MOD_PATH=${NFSROOT} KCONFIG_CONFIG=`pwd`/lophilo_boot.config
