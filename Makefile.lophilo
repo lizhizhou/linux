@@ -122,11 +122,14 @@ backup-microsd: setup-microsd-mount backup-microsd-syncos
 # setup TARGET_INSTALL_DIR
 #
 setup-target-dir: ${STANDARD_IMAGE} standard_modules
-	cp ${STANDARD_IMAGE} ${TARGET_INSTALL_DIR}/${STANDARD_IMAGE_FN}
+	mkdir -p ${TARGET_INSTALL_DIR}/boot
+	cp ${STANDARD_IMAGE} ${TARGET_INSTALL_DIR}/boot
+	cp ../firmware-binaries/boot.bin ${TARGET_INSTALL_DIR}/boot
+	cp ../firmware-binaries/grid.rbf ${TARGET_INSTALL_DIR}/boot
 	make modules_install INSTALL_MOD_PATH=${TARGET_INSTALL_DIR} KCONFIG_CONFIG=`pwd`/lophilo_boot.config
 
 setup-nfs-dir: setup-target-dir
-	sudo cp ${TARGET_INSTALL_DIR}/${STANDARD_IMAGE_FN} ${TARGET_NFS_INSTALL_DIR}
+	sudo cp -r ${TARGET_INSTALL_DIR}/boot ${TARGET_NFS_INSTALL_DIR}
 	sudo cp -r ${TARGET_INSTALL_DIR}/lib ${TARGET_NFS_INSTALL_DIR}
 
 #
