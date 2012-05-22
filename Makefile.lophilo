@@ -122,7 +122,6 @@ backup-microsd: setup-microsd-mount backup-microsd-syncos
 # setup TARGET_INSTALL_DIR
 #
 setup-target-dir: ${STANDARD_IMAGE} standard_modules
-	# TODO: doesn't work... tries to restart the install
 	cp ${STANDARD_IMAGE} ${TARGET_INSTALL_DIR}/${STANDARD_IMAGE_FN}
 	make modules_install INSTALL_MOD_PATH=${TARGET_INSTALL_DIR} KCONFIG_CONFIG=`pwd`/lophilo_boot.config
 
