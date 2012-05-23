@@ -145,7 +145,10 @@ backup-microsd: setup-microsd-mount backup-microsd-syncos
 #
 # setup TARGET_INSTALL_DIR
 #
+RSYNC_INSTALL=sudo rsync -avz --delete-delay  --exclude=.gitignore
+
 setup-target-dir: ${STANDARD_IMAGE} standard_modules ${DEBUG_IMAGE} debug_modules
+	-rm -fr ${TARGET_INSTALL_DIR}/boot
 	mkdir -p ${TARGET_INSTALL_DIR}/boot
 	cp ${STANDARD_IMAGE} ${TARGET_INSTALL_DIR}/boot
 	cp ${DEBUG_IMAGE} ${TARGET_INSTALL_DIR}/boot/${DEBUG_IMAGE_FN}
@@ -155,8 +158,8 @@ setup-target-dir: ${STANDARD_IMAGE} standard_modules ${DEBUG_IMAGE} debug_module
 	make modules_install INSTALL_MOD_PATH=${TARGET_INSTALL_DIR} KCONFIG_CONFIG=`pwd`/${KCONFIG_CONFIG_DEBUG} ${DEBUG_MAKE_PARAMS}
 
 setup-nfs-dir: setup-target-dir
-	sudo cp -r ${TARGET_INSTALL_DIR}/boot ${TARGET_NFS_INSTALL_DIR}
-	sudo cp -r ${TARGET_INSTALL_DIR}/lib ${TARGET_NFS_INSTALL_DIR}
+	${RSYNC_INSTALL} ${TARGET_INSTALL_DIR}/boot/ ${TARGET_NFS_INSTALL_DIR}/boot/
+	${RSYNC_INSTALL} ${TARGET_INSTALL_DIR}/lib/modules/ ${TARGET_NFS_INSTALL_DIR}/lib/modules/
 
 #
 # DEPRECATED: for future reference only
