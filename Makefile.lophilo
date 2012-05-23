@@ -8,14 +8,18 @@ include ../../Makefile.microsd
 # Some constants used further below
 #
 export LINUX_DIRNAME=$(shell basename `pwd`)
+export LINUX_DIRNAME_DEBUG=$(shell basename `pwd`)-dbg
+export KCONFIG_CONFIG_STANDARD=lophilo_boot.config
+export KCONFIG_CONFIG_DEBUG=lophilo_boot_debug.config
 export KERNELVERSION:=$(shell make kernelversion)
 
 #
 # Kernel build variables
 # 
-export CONCURRENCY_LEVEL=8
-export KBUILD_OUTPUT=../../obj/${LINUX_DIRNAME}
 export ARCH:=arm
+export CONCURRENCY_LEVEL=8
+export KBUILD_OUTPUT_STANDARD=../../obj/${LINUX_DIRNAME}
+export KBUILD_OUTPUT_DEBUG=../../obj/${LINUX_DIRNAME}-debug
 export CROSS_COMPILE:=../../codesourcery/arm926ej-s/
 #export IMAGE:=arch/arm/boot/uImage
 
@@ -23,10 +27,11 @@ export CROSS_COMPILE:=../../codesourcery/arm926ej-s/
 # Output variables
 #
 export STANDARD_IMAGE_FN:=zImage
-export STANDARD_IMAGE:=${KBUILD_OUTPUT}/arch/arm/boot/${STANDARD_IMAGE_FN}
-export XIP_IMAGE:=arch/arm/boot/xipImage
-export IMAGE_FILENAME:=$(shell basename ${IMAGE})
-export TARGET_ARCHIVE:=`date +%Y%m%d%H%M`
+export DEBUG_IMAGE_FN:=zImage-debug
+
+export STANDARD_IMAGE:=${KBUILD_OUTPUT_STANDARD}/arch/arm/boot/${STANDARD_IMAGE_FN}
+# debug image in output dir is the same as standard, we'll rename on copy
+export DEBUG_IMAGE:=${KBUILD_OUTPUT_DEBUG}/arch/arm/boot/${STANDARD_IMAGE_FN}
 
 #
 # Installation related variables
@@ -35,45 +40,64 @@ export TARGET_NFS_INSTALL_DIR:=${HOME}/lophilo-OS.nfs
 export TARGET_INSTALL_DIR:=${HOME}/current_image
 
 export NOW:=$(shell date +%Y%m%d-%s)
-export INSTALL_MOD_PATH:=/exports/squeeze
-export INSTALL_HDR_PATH:=/exports/squeeze/usr/include/linux 
-export BUILD_DIR:=/exports/squeeze/lib/modules/${KERNELVERSION}/build
 
 #
 # Other programs
 #
 export RSYNC:=rsync -avz --exclude="*.log" --exclude="*.pid" --exclude="*.leases" --exclude="var/log/*" --delete
 
-
-#
-# DEPRECATED
-#
-export IMAGE_BACKUP:=${HOME}/lophilo-bin/linux/versatilepb/${IMAGE_FILENAME}.${ARCH}.${KERNELVERSION}.${NOW}
-export IMAGE_LATEST:=${HOME}/lophilo-bin/linux/versatilepb/${IMAGE_FILENAME}.${ARCH}.latest
-
 .PHONY: clean config menuconfig version kernel debian install-debian install-squeeze1 backup archive-source archive-image
 
 all:
 	echo `dirname ${CROSS_COMPILE}`
 
-standard_config:
-	mkdir -p ${KBUILD_OUTPUT}
-	make ARCH=arm KCONFIG_CONFIG=lophilo_boot.config oldconfig
+#
+# Standard kernel 
+#
+export STANDARD_MAKE_PARAMS:=KCONFIG_CONFIG=`pwd`/${KCONFIG_CONFIG_STANDARD}  KBUILD_OUTPUT=${KBUILD_OUTPUT_STANDARD}
+${KBUILD_OUTPUT_STANDARD}:
+	mkdir -p ${KBUILD_OUTPUT_STANDARD}
 
-standard_menuconfig:
-	mkdir -p ${KBUILD_OUTPUT}
-	make ARCH=arm KCONFIG_CONFIG=`pwd`/lophilo_boot.config menuconfig
+standard_config: ${KBUILD_OUTPUT_STANDARD}
+	make ${STANDARD_MAKE_PARAMS} oldconfig
 
-standard_modules: lophilo_boot.config ${KBUILD_OUTPUT}/modules.order
+standard_menuconfig: ${KBUILD_OUTPUT_STANDARD}
+	make ${STANDARD_MAKE_PARAMS} menuconfig
 
-${KBUILD_OUTPUT}/modules.order: lophilo_boot.config
-	make modules V=1 KCONFIG_CONFIG=`pwd`/lophilo_boot.config
+standard_modules: ${KCONFIG_CONFIG_STANDARD} ${KBUILD_OUTPUT_STANDARD}/modules.order ${KBUILD_OUTPUT_STANDARD}
 
-standard_kernel: ${STANDARD_IMAGE} standard_modules
+standard_kernel: ${STANDARD_IMAGE} standard_modules ${KBUILD_OUTPUT_STANDARD}
 
-${STANDARD_IMAGE}: lophilo_boot.config
-	mkdir -p ${KBUILD_OUTPUT}
-	time make zImage V=1 KCONFIG_CONFIG=`pwd`/lophilo_boot.config
+${KBUILD_OUTPUT_STANDARD}/modules.order: ${KCONFIG_CONFIG_STANDARD}
+	make modules ${STANDARD_MAKE_PARAMS}
+
+${STANDARD_IMAGE}: ${KCONFIG_CONFIG_STANDARD}
+	mkdir -p ${KBUILD_OUTPUT_STANDARD}
+	time make zImage ${STANDARD_MAKE_PARAMS}
+
+#
+# debug kernel 
+#
+export DEBUG_MAKE_PARAMS:=KCONFIG_CONFIG=`pwd`/${KCONFIG_CONFIG_DEBUG}  KBUILD_OUTPUT=${KBUILD_OUTPUT_DEBUG}
+${KBUILD_OUTPUT_DEBUG}:
+	mkdir -p ${KBUILD_OUTPUT_DEBUG}
+
+debug_config: ${KBUILD_OUTPUT_DEBUG}
+	make ${DEBUG_MAKE_PARAMS} oldconfig
+
+debug_menuconfig: ${KBUILD_OUTPUT_DEBUG}
+	make ${DEBUG_MAKE_PARAMS} menuconfig
+
+debug_modules: ${KCONFIG_CONFIG_DEBUG} ${KBUILD_OUTPUT_DEBUG}/modules.order
+
+debug_kernel: ${DEBUG_IMAGE} debug_modules ${KBUILD_OUTPUT_DEBUG}
+
+${KBUILD_OUTPUT_DEBUG}/modules.order: ${KCONFIG_CONFIG_DEBUG}
+	make modules ${DEBUG_MAKE_PARAMS}
+
+${DEBUG_IMAGE}: ${KCONFIG_CONFIG_DEBUG}
+	mkdir -p ${KBUILD_OUTPUT_DEBUG}
+	time make zImage ${DEBUG_MAKE_PARAMS}
 
 #
 # steps to prepare the MicroSD card for boot
@@ -121,12 +145,14 @@ backup-microsd: setup-microsd-mount backup-microsd-syncos
 #
 # setup TARGET_INSTALL_DIR
 #
-setup-target-dir: ${STANDARD_IMAGE} standard_modules
+setup-target-dir: ${STANDARD_IMAGE} standard_modules ${DEBUG_IMAGE} debug_modules
 	mkdir -p ${TARGET_INSTALL_DIR}/boot
 	cp ${STANDARD_IMAGE} ${TARGET_INSTALL_DIR}/boot
+	cp ${DEBUG_IMAGE} ${TARGET_INSTALL_DIR}/boot/${DEBUG_IMAGE_FN}
 	cp ../firmware-binaries/boot.bin ${TARGET_INSTALL_DIR}/boot
 	cp ../firmware-binaries/grid.rbf ${TARGET_INSTALL_DIR}/boot
-	make modules_install INSTALL_MOD_PATH=${TARGET_INSTALL_DIR} KCONFIG_CONFIG=`pwd`/lophilo_boot.config
+	make modules_install INSTALL_MOD_PATH=${TARGET_INSTALL_DIR} KCONFIG_CONFIG=`pwd`/${KCONFIG_CONFIG_STANDARD} ${STANDARD_MAKE_PARAMS}
+	make modules_install INSTALL_MOD_PATH=${TARGET_INSTALL_DIR} KCONFIG_CONFIG=`pwd`/${KCONFIG_CONFIG_DEBUG} ${DEBUG_MAKE_PARAMS}
 
 setup-nfs-dir: setup-target-dir
 	sudo cp -r ${TARGET_INSTALL_DIR}/boot ${TARGET_NFS_INSTALL_DIR}
@@ -135,34 +161,6 @@ setup-nfs-dir: setup-target-dir
 #
 # DEPRECATED: for future reference only
 #
-config:
-	make ARCH=arm at91sam9g45_defconfig
-
-menuconfig:
-	make menuconfig
-
-backup:
-	mkdir -p ${HOME}/lophilo-bin/linux/versatilepb/
-	cp ${IMAGE} ${IMAGE_BACKUP}
-	-rm -f ${IMAGE_LATEST}
-	ln -s ${IMAGE_BACKUP} ${IMAGE_LATEST}
-
-kernel: ${IMAGE}
-
-${IMAGE}: .config
-	time make uImage V=1
-
-modules:
-	time make modules modules_install
-
-headers:
-	make headers_install
-
-modules_prepare:
-	sudo mkdir -p ${BUILD_DIR}
-	sudo chown rngadam:rngadam ${BUILD_DIR}
-	cp -fr --copy-contents --dereference * ${BUILD_DIR}
-
 debian:
 	#make deb-pkg
 	#dpkg-buildpackage -b -aarmel
@@ -176,26 +174,3 @@ debian:
 	ls ../*${NOW}* > ../kernel-build-${NOW}.txt 
 	-rm -f ../kernel-latest-build.txt
 	ln -s ../kernel-build-${NOW}.txt ../kernel-latest-build.txt
-
-install-squeeze1: ../kernel-latest-build.txt
-	@echo "moving packages in parent directory to target"
-	sudo cp ../kernel-latest-build.txt /exports/squeeze/root
-	cd ..; sudo cp `cat kernel-latest-build.txt` /exports/squeeze/root
-	@echo "as root@squeeze1, install with:  dpkg -i --ignore-depends=libtinfo5 \`cat kernel-latest-build.txt\`"
-
-# xip configuration for XIP flash boot
-xip_config:
-	mkdir -p ${KBUILD_OUTPUT}
-	make ARCH=arm KCONFIG_CONFIG=lophilo_xip_boot.config oldconfig
-
-xip_menuconfig:
-	mkdir -p ${KBUILD_OUTPUT}
-	make ARCH=arm KCONFIG_CONFIG=`pwd`/lophilo_xip_boot.config menuconfig
-
-xip_kernel: ${XIP_IMAGE}
-
-${XIP_IMAGE}: lophilo_xip_boot.config
-	mkdir -p ${KBUILD_OUTPUT}
-	time make xipImage V=1 KCONFIG_CONFIG=`pwd`/lophilo_xip_boot.config
-	
-# xip configuration for XIP flash boot
