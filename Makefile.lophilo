@@ -148,7 +148,7 @@ backup-microsd: setup-microsd-mount backup-microsd-syncos
 RSYNC_INSTALL=sudo rsync -avz --delete-delay  --exclude=.gitignore
 
 setup-target-dir: ${STANDARD_IMAGE} standard_modules ${DEBUG_IMAGE} debug_modules
-	-rm -fr ${TARGET_INSTALL_DIR}/boot
+	-rm -fr ${TARGET_INSTALL_DIR}/
 	mkdir -p ${TARGET_INSTALL_DIR}/boot
 	cp ${STANDARD_IMAGE} ${TARGET_INSTALL_DIR}/boot
 	cp ${DEBUG_IMAGE} ${TARGET_INSTALL_DIR}/boot/${DEBUG_IMAGE_FN}
