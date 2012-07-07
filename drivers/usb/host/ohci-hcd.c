@@ -754,6 +754,12 @@ static irqreturn_t ohci_irq (struct usb_hcd *hcd)
 	 * optimization of checking the LSB of hcca->done_head; it doesn't
 	 * work on all systems (edge triggering for OHCI can be a factor).
 	 */
+	 if(!regs) {
+		if (printk_ratelimit())
+			printk("LOPHILO: ohci registers not initialized yet, skipping\n");
+		return IRQ_HANDLED;
+	 }
+
 	ints = ohci_readl(ohci, &regs->intrstatus);
 
 	/* Check for an all 1's result which is a typical consequence
