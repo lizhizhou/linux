@@ -32,11 +32,12 @@ export DEBUG_IMAGE_FN:=zImage-debug
 export STANDARD_IMAGE:=${KBUILD_OUTPUT_STANDARD}/arch/arm/boot/${STANDARD_IMAGE_FN}
 # debug image in output dir is the same as standard, we'll rename on copy
 export DEBUG_IMAGE:=${KBUILD_OUTPUT_DEBUG}/arch/arm/boot/${STANDARD_IMAGE_FN}
+export TABBYREV0_DTB:=${KBUILD_OUTPUT_STANDARD}/arch/arm/boot/tabbyrev0.dtb
 
 #
 # Installation related variables
 #
-export TARGET_NFS_INSTALL_DIR:=${HOME}/lophilo-OS.nfs
+export TARGET_NFS_INSTALL_DIR:=${HOME}/lophilo.nfs
 export TARGET_INSTALL_DIR:=${HOME}/current_image
 
 export NOW:=$(shell date +%Y%m%d-%s)
@@ -66,7 +67,12 @@ standard_menuconfig: ${KBUILD_OUTPUT_STANDARD}
 
 standard_modules: ${KCONFIG_CONFIG_STANDARD} ${KBUILD_OUTPUT_STANDARD}/modules.order ${KBUILD_OUTPUT_STANDARD}
 
-standard_kernel: ${STANDARD_IMAGE} standard_modules ${KBUILD_OUTPUT_STANDARD}
+standard_kernel: ${STANDARD_IMAGE} standard_modules ${KBUILD_OUTPUT_STANDARD} 
+
+dtb: ${TABBYREV0_DTB} 
+
+${KBUILD_OUTPUT_STANDARD}/arch/arm/boot/tabbyrev0.dtb: arch/arm/boot/dts/tabbyrev0.dts
+	make ${STANDARD_MAKE_PARAMS} tabbyrev0.dtb
 
 ${KBUILD_OUTPUT_STANDARD}/modules.order: ${KCONFIG_CONFIG_STANDARD}
 	make modules ${STANDARD_MAKE_PARAMS}
@@ -90,7 +96,7 @@ debug_menuconfig: ${KBUILD_OUTPUT_DEBUG}
 
 debug_modules: ${KCONFIG_CONFIG_DEBUG} ${KBUILD_OUTPUT_DEBUG}/modules.order
 
-debug_kernel: ${DEBUG_IMAGE} debug_modules ${KBUILD_OUTPUT_DEBUG}
+debug_kernel: ${DEBUG_IMAGE} debug_modules ${KBUILD_OUTPUT_DEBUG} 
 
 ${KBUILD_OUTPUT_DEBUG}/modules.order: ${KCONFIG_CONFIG_DEBUG}
 	make modules ${DEBUG_MAKE_PARAMS}
@@ -119,7 +125,7 @@ setup-microsd-copyimg: ${STANDARD_IMAGE} setup-microsd-mount
 	cp ${STANDARD_IMAGE} /media/lophilofat32
 
 setup-microsd-modules: standard_modules
-	sudo make modules_install INSTALL_MOD_PATH=/home/rngadam/lophilo-OS
+	sudo make modules_install INSTALL_MOD_PATH=${TARGET_NFS_INSTALL_DIR}
 
 setup-microsd-syncos: setup-microsd-modules
 	sudo ${RSYNC} ${HOME}/lophilo-OS/ /media/lophiloext4/
@@ -147,11 +153,12 @@ backup-microsd: setup-microsd-mount backup-microsd-syncos
 #
 RSYNC_INSTALL=sudo rsync -avz --delete-delay  --exclude=.gitignore
 
-setup-target-dir: ${STANDARD_IMAGE} standard_modules ${DEBUG_IMAGE} debug_modules
+setup-target-dir: ${STANDARD_IMAGE} standard_modules ${DEBUG_IMAGE} debug_modules dtb
 	-rm -fr ${TARGET_INSTALL_DIR}/
 	mkdir -p ${TARGET_INSTALL_DIR}/boot
 	cp ${STANDARD_IMAGE} ${TARGET_INSTALL_DIR}/boot
 	cp ${DEBUG_IMAGE} ${TARGET_INSTALL_DIR}/boot/${DEBUG_IMAGE_FN}
+	cp ${TABBYREV0_DTB} ${TARGET_INSTALL_DIR}/boot/
 	cp ../firmware-binaries/boot.bin ${TARGET_INSTALL_DIR}/boot
 	cp ../firmware-binaries/grid.rbf ${TARGET_INSTALL_DIR}/boot
 	make modules_install INSTALL_MOD_PATH=${TARGET_INSTALL_DIR} KCONFIG_CONFIG=`pwd`/${KCONFIG_CONFIG_STANDARD} ${STANDARD_MAKE_PARAMS}

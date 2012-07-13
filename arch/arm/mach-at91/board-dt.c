@@ -52,6 +52,7 @@ static const char *at91_dt_board_compat[] __initdata = {
 	"atmel,at91sam9m10g45ek",
 	"atmel,at91sam9x5ek",
 	"calao,usb-a9g20",
+	"lophilo,tabbyrev0",
 	NULL
 };
 
