@@ -36,7 +36,7 @@ export DEBUG_IMAGE:=${KBUILD_OUTPUT_DEBUG}/arch/arm/boot/${STANDARD_IMAGE_FN}
 #
 # Installation related variables
 #
-export TARGET_NFS_INSTALL_DIR:=${HOME}/lophilo-OS.nfs
+export TARGET_NFS_INSTALL_DIR:=${HOME}/lophilo.nfs
 export TARGET_INSTALL_DIR:=${HOME}/current_image
 
 export NOW:=$(shell date +%Y%m%d-%s)
