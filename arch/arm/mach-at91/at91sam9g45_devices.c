@@ -1345,9 +1345,14 @@ void __init at91_add_device_pwm(u32 mask)
 {
 	if (mask & (1 << AT91_PWM0))
 		at91_set_B_periph(AT91_PIN_PD24, 1);	/* enable PWM0 */
-
+	
+#if defined(CONFIG_MACH_LOPHILO_TABBY) 
+	if (mask & (1 << AT91_PWM1))
+		at91_set_B_periph(AT91_PIN_PD25, 1);	/* enable PWM1 */
+#else
 	if (mask & (1 << AT91_PWM1))
 		at91_set_B_periph(AT91_PIN_PD31, 1);	/* enable PWM1 */
+#endif
 
 	if (mask & (1 << AT91_PWM2))
 		at91_set_B_periph(AT91_PIN_PD26, 1);	/* enable PWM2 */
@@ -1611,10 +1616,10 @@ static inline void configure_usart1_pins(unsigned pins)
 	at91_set_A_periph(AT91_PIN_PB4, 1);		/* TXD1 */
 	at91_set_A_periph(AT91_PIN_PB5, 0);		/* RXD1 */
 
-//	if (pins & ATMEL_UART_RTS)
-//		at91_set_A_periph(AT91_PIN_PD16, 0);	/* RTS1 */
-//	if (pins & ATMEL_UART_CTS)
-//		at91_set_A_periph(AT91_PIN_PD17, 0);	/* CTS1 */
+	if (pins & ATMEL_UART_RTS)
+		at91_set_A_periph(AT91_PIN_PD16, 0);	/* RTS1 */
+	if (pins & ATMEL_UART_CTS)
+		at91_set_A_periph(AT91_PIN_PD17, 0);	/* CTS1 */
 }
 
 static struct resource uart2_resources[] = {
