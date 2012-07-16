@@ -147,13 +147,14 @@ backup-microsd: setup-microsd-mount backup-microsd-syncos
 #
 RSYNC_INSTALL=sudo rsync -avz --delete-delay  --exclude=.gitignore
 
-setup-target-dir: ${STANDARD_IMAGE} standard_modules ${DEBUG_IMAGE} debug_modules
+setup-target-dir: ${STANDARD_IMAGE} standard_modules ${DEBUG_IMAGE} debug_modules ../firmware-binaries/boot.bin ../firmware-binaries/grid.rbf
 	-rm -fr ${TARGET_INSTALL_DIR}/
 	mkdir -p ${TARGET_INSTALL_DIR}/boot
 	cp ${STANDARD_IMAGE} ${TARGET_INSTALL_DIR}/boot
 	cp ${DEBUG_IMAGE} ${TARGET_INSTALL_DIR}/boot/${DEBUG_IMAGE_FN}
 	cp ../firmware-binaries/boot.bin ${TARGET_INSTALL_DIR}/boot
 	cp ../firmware-binaries/grid.rbf ${TARGET_INSTALL_DIR}/boot
+	cp ../firmware-binaries/kcmd.txt ${TARGET_INSTALL_DIR}/boot
 	make modules_install INSTALL_MOD_PATH=${TARGET_INSTALL_DIR} KCONFIG_CONFIG=`pwd`/${KCONFIG_CONFIG_STANDARD} ${STANDARD_MAKE_PARAMS}
 	make modules_install INSTALL_MOD_PATH=${TARGET_INSTALL_DIR} KCONFIG_CONFIG=`pwd`/${KCONFIG_CONFIG_DEBUG} ${DEBUG_MAKE_PARAMS}
 
