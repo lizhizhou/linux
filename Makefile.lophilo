@@ -129,7 +129,7 @@ firmware: ${STANDARD_IMAGE} ${DEBUG_IMAGE}
 	cp ${VMLINUX_IMAGE} ${FIRMWARE_DIRNAME}/
 	cp ${DEBUG_VMLINUX_IMAGE} ${FIRMWARE_DIRNAME}/vmlinux-debug
 	git describe > ${FIRMWARE_DIRNAME}/kernel.txt
-	echo "Don't forget to generate a source archive with `makel linux-src`
+	echo "Don't forget to generate a source archive with: makel linux-src"
 
 #
 # setup TARGET_INSTALL_DIR
