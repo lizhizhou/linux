@@ -26,6 +26,10 @@
 #include <linux/leds.h>
 #include <linux/atmel-mci.h>
 #include <linux/delay.h>
+#include <linux/io.h>
+#include <linux/of.h>
+#include <linux/of_address.h>
+
 
 #include <mach/hardware.h>
 #include <video/atmel_lcdc.h>
@@ -49,6 +53,23 @@
 #include "generic.h"
 #include "clock.h"
 #include "sam9_smc.h"
+
+#define GBASE_SYS_ID		(unsigned int)(0x10000000)
+#define gSYS_ID 		(*(volatile unsigned short *)(GBASE_SYS_ID + 0x0))
+#define gSYS_ID_FLAG		(*(volatile unsigned short *)(GBASE_SYS_ID + 0x2))
+#define gSYS_ID_VER 		(*(volatile unsigned int *)(GBASE_SYS_ID + 0x4))
+#define gSYS_ID_LOCK		(*(volatile unsigned int *)(GBASE_SYS_ID + 0x8))
+#define gSYS_ID_LOCKB		(*(volatile unsigned int *)(GBASE_SYS_ID + 0xC))
+
+#define GBASE_FUNC_LED		(unsigned int)(0x10000100)
+#define gFUNC_LED_B(ch)		(*(volatile unsigned char *)(GBASE_FUNC_LED + 0x0 + 0x4 * ch))
+#define gFUNC_LED_G(ch)		(*(volatile unsigned char *)(GBASE_FUNC_LED + 0x1 + 0x4 * ch))
+#define gFUNC_LED_R(ch)		(*(volatile unsigned char *)(GBASE_FUNC_LED + 0x2 + 0x4 * ch))
+#define gFUNC_LED_S(ch)		(*(volatile unsigned char *)(GBASE_FUNC_LED + 0x3 + 0x4 * ch))
+
+#define grid_func_led_set(ch, r, g, b)	{gFUNC_LED_S(ch) = (unsigned char)(0x00); gFUNC_LED_R(ch) = (unsigned char)r; gFUNC_LED_G(ch) = (unsigned char)g; gFUNC_LED_B(ch) = (unsigned char)b;}
+#define grid_func_led_asi(ch)		{gFUNC_LED_S(ch) = (unsigned char)(0x80);}	// Set LED controlled by external module
+#define grid_func_led_usr(ch)		{gFUNC_LED_S(ch) = (unsigned char)(0x00);}	// Set LED controlled by register values
 
 
 static void __init ek_init_early(void)
@@ -264,14 +285,38 @@ static struct gpio_led ek_pwm_led[] = {
 #endif
 };
 
-static struct platform_device *devices[] __initdata = {
+void __iomem *fpga_cs0_base = NULL;
+void __iomem *fpga_cs1_base = NULL;
+void __iomem *fpga_cs2_base = NULL;
+void __iomem *fpga_cs3_base = NULL;
 
+static struct sam9_smc_config __initdata lophilo_fpga_smc_config = {
+	.ncs_read_setup		= 0,
+	.nrd_setup		= 2,
+	.ncs_write_setup	= 0,
+	.nwe_setup		= 0,
+
+	.ncs_read_pulse		= 0,
+	.nrd_pulse		= 6,
+	.ncs_write_pulse	= 0,
+	.nwe_pulse		= 2,
+
+	.read_cycle		= 10,
+	.write_cycle		= 6,
+
+	.mode			= ((0 << 28) + (0 << 24) + (1 << 20) + (8 << 16) + (2 << 12) + (0 << 8) + (2 << 4) + (1 << 1) + (1 << 0)),
+	.tdf_cycles		= 8,
 };
 
 static void __init start_grid_fpga(void)
 {
 	struct clk *pck;
 	
+	sam9_smc_configure(0, 0, &lophilo_fpga_smc_config);
+	sam9_smc_configure(0, 1, &lophilo_fpga_smc_config);
+	sam9_smc_configure(0, 2, &lophilo_fpga_smc_config);
+	sam9_smc_configure(0, 3, &lophilo_fpga_smc_config);
+
 	/* Reset FPGA (Grid) */
 	at91_set_gpio_output(AT91_PIN_PA27, 0);
 
@@ -296,10 +341,30 @@ static void __init start_grid_fpga(void)
 	clk_enable(pck);
 	clk_put(pck);
 
-
 	msleep(10);
 	at91_set_gpio_output(AT91_PIN_PA27, 1);
+
+	fpga_cs0_base = ioremap((0x10000000), (0x1000000));
+	printk(KERN_INFO "grid: CS0 ioremap to 0x%08X", (unsigned int)fpga_cs0_base);
+	fpga_cs1_base = ioremap((0x20000000), (0x1000000));
+	printk(KERN_INFO "grid: CS1 ioremap to 0x%08X", (unsigned int)fpga_cs1_base);
+	fpga_cs2_base = ioremap((0x30000000), (0x1000000));
+	printk(KERN_INFO "grid: CS2 ioremap to 0x%08X", (unsigned int)fpga_cs2_base);
+	fpga_cs3_base = ioremap((0x40000000), (0x1000000));
+	printk(KERN_INFO "grid: CS3 ioremap to 0x%08X", (unsigned int)fpga_cs3_base);
+	//__raw_writel((0x6015), (0x10000100));
+	//__raw_writel((0x6015), (0x10000104));
+	//__raw_writel((0x6015), (0x10000108));
+	//__raw_writel((0x6015), (0x1000010c));
+
+	printk(KERN_INFO "grid: Lophilo FPGA (grid) initialized");
+
+	
 }
+
+static struct platform_device *devices[] __initdata = {
+
+};
 
 static void __init ek_board_init(void)
 {
