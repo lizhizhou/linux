@@ -30,7 +30,6 @@ modules.builtin
 *.lzma
 *.xz
 *.lzo
-*.patch
 *.gcno
 
 #
@@ -84,3 +83,4 @@ GTAGS
 *.orig
 *~
 \#*#
+*.old
