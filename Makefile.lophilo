@@ -1,17 +1,11 @@
-#
-# Customized build instructions for Lophilo
-# We assume that this is checked out as a Lophilo/ submodule in upstream/
-#
-include ../../Makefile.microsd
 
-#
 # Some constants used further below
 #
-export LINUX_DIRNAME=$(shell basename `pwd`)
-export LINUX_DIRNAME_DEBUG=$(shell basename `pwd`)-dbg
-export FIRMWARE_DIRNAME=../firmware-binaries
-export KCONFIG_CONFIG_STANDARD=lophilo_boot.config
-export KCONFIG_CONFIG_DEBUG=lophilo_boot_debug.config
+export LOPHILO_DIR:=${HOME}/lophilo
+export LINUX_DIRNAME:=$(shell basename `pwd`)
+export FIRMWARE_DIRNAME:=${LOPHILO_DIR}/firmware-binaries
+export KCONFIG_CONFIG_STANDARD:=lophilo_boot.config
+export KCONFIG_CONFIG_DEBUG:=lophilo_boot_debug.config
 export KERNELVERSION:=$(shell make kernelversion)
 export GITDESCRIBE:=$(shell git describe)
 
@@ -19,10 +13,10 @@ export GITDESCRIBE:=$(shell git describe)
 # Kernel build variables
 # 
 export ARCH:=arm
-export CONCURRENCY_LEVEL=8
-export KBUILD_OUTPUT_STANDARD=../../obj/${LINUX_DIRNAME}
-export KBUILD_OUTPUT_DEBUG=../../obj/${LINUX_DIRNAME}-debug
-export CROSS_COMPILE:=../../codesourcery/arm926ej-s/
+export CONCURRENCY_LEVEL:=8
+export KBUILD_OUTPUT_STANDARD:=${LOPHILO_DIR}/obj/${LINUX_DIRNAME}
+export KBUILD_OUTPUT_DEBUG:=${LOPHILO_DIR}/obj/${LINUX_DIRNAME}-debug
+export CROSS_COMPILE:=${LOPHILO_DIR}/codesourcery/arm926ej-s/
 
 #
 # Output variables
