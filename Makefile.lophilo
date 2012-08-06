@@ -1,27 +1,22 @@
-#
-# Customized build instructions for Lophilo
-# We assume that this is checked out as a Lophilo/ submodule in upstream/
-#
-include ../../Makefile.microsd
 
-#
 # Some constants used further below
 #
-export LINUX_DIRNAME=$(shell basename `pwd`)
-export LINUX_DIRNAME_DEBUG=$(shell basename `pwd`)-dbg
-export KCONFIG_CONFIG_STANDARD=lophilo_boot.config
-export KCONFIG_CONFIG_DEBUG=lophilo_boot_debug.config
+export LOPHILO_DIR:=${HOME}/lophilo
+export LINUX_DIRNAME:=$(shell basename `pwd`)
+export FIRMWARE_DIRNAME:=${LOPHILO_DIR}/firmware-binaries
+export KCONFIG_CONFIG_STANDARD:=lophilo_boot.config
+export KCONFIG_CONFIG_DEBUG:=lophilo_boot_debug.config
 export KERNELVERSION:=$(shell make kernelversion)
+export GITDESCRIBE:=$(shell git describe)
 
 #
 # Kernel build variables
 # 
 export ARCH:=arm
-export CONCURRENCY_LEVEL=8
-export KBUILD_OUTPUT_STANDARD=../../obj/${LINUX_DIRNAME}
-export KBUILD_OUTPUT_DEBUG=../../obj/${LINUX_DIRNAME}-debug
-export CROSS_COMPILE:=../../codesourcery/arm926ej-s/
-#export IMAGE:=arch/arm/boot/uImage
+export CONCURRENCY_LEVEL:=8
+export KBUILD_OUTPUT_STANDARD:=${LOPHILO_DIR}/obj/${LINUX_DIRNAME}
+export KBUILD_OUTPUT_DEBUG:=${LOPHILO_DIR}/obj/${LINUX_DIRNAME}-debug
+export CROSS_COMPILE:=${LOPHILO_DIR}/codesourcery/arm926ej-s/
 
 #
 # Output variables
@@ -30,8 +25,10 @@ export STANDARD_IMAGE_FN:=zImage
 export DEBUG_IMAGE_FN:=zImage-debug
 
 export STANDARD_IMAGE:=${KBUILD_OUTPUT_STANDARD}/arch/arm/boot/${STANDARD_IMAGE_FN}
+export VMLINUX_IMAGE:=${KBUILD_OUTPUT_STANDARD}/vmlinux
 # debug image in output dir is the same as standard, we'll rename on copy
 export DEBUG_IMAGE:=${KBUILD_OUTPUT_DEBUG}/arch/arm/boot/${STANDARD_IMAGE_FN}
+export DEBUG_VMLINUX_IMAGE:=${KBUILD_OUTPUT_DEBUG}/vmlinux
 
 #
 # Installation related variables
@@ -46,7 +43,7 @@ export NOW:=$(shell date +%Y%m%d-%s)
 #
 export RSYNC:=rsync -avz --exclude="*.log" --exclude="*.pid" --exclude="*.leases" --exclude="var/log/*" --delete
 
-.PHONY: clean config menuconfig version kernel debian install-debian install-squeeze1 backup archive-source archive-image
+.PHONY: clean config menuconfig version kernel debian install-debian install-squeeze1 backup archive-source archive-image firmware linux-src linux-src-git
 
 all:
 	echo `dirname ${CROSS_COMPILE}`
@@ -99,55 +96,41 @@ ${DEBUG_IMAGE}: ${KCONFIG_CONFIG_DEBUG}
 	mkdir -p ${KBUILD_OUTPUT_DEBUG}
 	time make zImage ${DEBUG_MAKE_PARAMS}
 
-#
-# steps to prepare the MicroSD card for boot
-#
-# we're assuming it's correctly partionned at this step
-#
-# see: https://github.com/Lophilo/lophilo/blob/master/docs/microsd.md
-#
-${KBUILD_OUTPUT}/linux-src.zip: ${STANDARD_IMAGE}
+# backup source directory
+# TODO: find a way to do this quickly (rsync?)
+${FIRMWARE_DIRNAME}/src/linux-src-${GITDESCRIBE}.zip: ${STANDARD_IMAGE}
+	mkdir -p ${FIRMWARE_DIRNAME}/src
 	git archive HEAD --format=zip > $@
+	echo "find the linux src archive in $@"
 
-setup-microsd-mount: /media/lophilofat32 /media/lophiloext4
+linux-src: ${FIRMWARE_DIRNAME}/src/linux-src-${GITDESCRIBE}.zip
 
-/media/lophilofat32/linux-src.zip: setup-microsd-mount ${KBUILD_OUTPUT}/linux-src.zip 
-	cp linux-src.zip $@
+# create git clone archive
+${HOME}/src/linux-src-git-${GITDESCRIBE}.tgz: ${STANDARD_IMAGE}
+	mkdir -p ${HOME}/src
+	git clone -l . ${HOME}/src/linux-src-git-${GITDESCRIBE}
+	tar cvfz ${HOME}/src/linux-src-git-${GITDESCRIBE} $@
+	echo "find the linux src git archive in $@"
 
-setup-microsd-copyimg: ${STANDARD_IMAGE} setup-microsd-mount 
-	-mv /media/lophilofat32/${STANDARD_IMAGE_FN} /media/lophilofat32/${STANDARD_IMAGE_FN}.${NOW}
-	cp ${STANDARD_IMAGE} /media/lophilofat32
-
-setup-microsd-modules: standard_modules
-	sudo make modules_install INSTALL_MOD_PATH=/home/rngadam/lophilo-OS
-
-setup-microsd-syncos: setup-microsd-modules
-	sudo ${RSYNC} ${HOME}/lophilo-OS/ /media/lophiloext4/
-
-setup-microsd: setup-microsd-copyimg setup-microsd-syncos /media/lophilofat32/linux-src.zip
-	pumount /dev/sdb1
-	pumount /dev/sdb2
-	eject /dev/sdb
+linux-src-git: ${HOME}/src/linux-src-git-${GITDESCRIBE}.tgz
 
 #
-# steps to backup changes from MicroSD card
+# copy to firmware-binaries repo
 #
-backup-microsd-syncos: 
-	mkdir -p ${HOME}/lophilo-OS.${NOW}
-	sudo ${RSYNC} ${HOME}/lophilo-OS ${HOME}/lophilo-OS.${NOW}	
-	sudo ${RSYNC} /media/lophiloext4 ${HOME}/lophilo-OS 
-
-backup-microsd: setup-microsd-mount backup-microsd-syncos
-	pumount /dev/sdb1
-	pumount /dev/sdb2
-	sudo eject /dev/sdb
+firmware: ${STANDARD_IMAGE} ${DEBUG_IMAGE}
+	cp ${STANDARD_IMAGE} ${FIRMWARE_DIRNAME}/${STANDARD_IMAGE_FN}
+	cp ${DEBUG_IMAGE} ${FIRMWARE_DIRNAME}/${DEBUG_IMAGE_FN}
+	cp ${VMLINUX_IMAGE} ${FIRMWARE_DIRNAME}/
+	cp ${DEBUG_VMLINUX_IMAGE} ${FIRMWARE_DIRNAME}/vmlinux-debug
+	git describe > ${FIRMWARE_DIRNAME}/kernel.txt
+	echo "Don't forget to generate a source archive with: makel linux-src"
 
 #
 # setup TARGET_INSTALL_DIR
 #
 RSYNC_INSTALL=sudo rsync -avz --delete-delay  --exclude=.gitignore
 
-setup-target-dir: ${STANDARD_IMAGE} standard_modules ${DEBUG_IMAGE} debug_modules
+setup-target-dir: ${STANDARD_IMAGE} standard_modules ${DEBUG_IMAGE} debug_modules ../firmware-binaries/boot.bin ../firmware-binaries/grid.rbf
 	-rm -fr ${TARGET_INSTALL_DIR}/
 	mkdir -p ${TARGET_INSTALL_DIR}/boot
 	cp ${STANDARD_IMAGE} ${TARGET_INSTALL_DIR}/boot
@@ -160,20 +143,3 @@ setup-target-dir: ${STANDARD_IMAGE} standard_modules ${DEBUG_IMAGE} debug_module
 setup-nfs-dir: setup-target-dir
 	${RSYNC_INSTALL} ${TARGET_INSTALL_DIR}/boot/ ${TARGET_NFS_INSTALL_DIR}/boot/
 	${RSYNC_INSTALL} ${TARGET_INSTALL_DIR}/lib/modules/ ${TARGET_NFS_INSTALL_DIR}/lib/modules/
-
-#
-# DEPRECATED: for future reference only
-#
-debian:
-	#make deb-pkg
-	#dpkg-buildpackage -b -aarmel
-	-ln -s kernel-pkg.conf ${HOME}/.kernel-pkg.conf
-	make-kpkg \
-	  --revision ${NOW} \
-	  --arch=armel --us --uc --initrd \
-	  --rootcmd fakeroot \
-	  -j`getconf _NPROCESSORS_ONLN` \
-	  kernel-image kernel-headers kernel-doc kernel-source
-	ls ../*${NOW}* > ../kernel-build-${NOW}.txt 
-	-rm -f ../kernel-latest-build.txt
-	ln -s ../kernel-build-${NOW}.txt ../kernel-latest-build.txt
