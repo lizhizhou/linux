@@ -234,7 +234,8 @@ static struct atmel_lcdfb_info __initdata ek_lcdc_data;
  * AC97
  */
 static struct ac97c_platform_data ek_ac97_data = {
-	.reset_pin	= AT91_PIN_PB6,
+	.reset_pin	= AT91_PIN_PD3,
+	//.reset_pin	= AT91_PIN_PB6,
 };
 
 /*
@@ -347,24 +348,24 @@ static void __init start_grid_fpga(void)
 	sam9_smc_configure(0, 3, &lophilo_fpga_smc_config);
 
 	fpga_cs0_base = ioremap((0x10000000), (0x1000000));
-	printk(KERN_INFO "grid: CS0 ioremap to 0x%08X", (int)fpga_cs0_base);
+	printk(KERN_INFO "grid: CS0 (0x10000000) ioremap to 0x%08X", (int)fpga_cs0_base);
 	fpga_cs1_base = ioremap((0x20000000), (0x1000000));
-	printk(KERN_INFO "grid: CS1 ioremap to 0x%08X", (int)fpga_cs1_base);
+	printk(KERN_INFO "grid: CS1 (0x20000000) ioremap to 0x%08X", (int)fpga_cs1_base);
 	fpga_cs2_base = ioremap((0x30000000), (0x1000000));
-	printk(KERN_INFO "grid: CS2 ioremap to 0x%08X", (int)fpga_cs2_base);
+	printk(KERN_INFO "grid: CS2 (0x30000000) ioremap to 0x%08X", (int)fpga_cs2_base);
 	fpga_cs3_base = ioremap((0x40000000), (0x1000000));
-	printk(KERN_INFO "grid: CS3 ioremap to 0x%08X", (int)fpga_cs3_base);
+	printk(KERN_INFO "grid: CS3 (0x40000000) ioremap to 0x%08X", (int)fpga_cs3_base);
 
 	msleep(50);
 	/* Release the Grid's reset pin */
 	at91_set_gpio_output(AT91_PIN_PA27, 1);
 
-	iowrite32(0x6016, (fpga_cs0_base+0x100));
-	iowrite32(0x6016, (fpga_cs0_base+0x104));
-	iowrite32(0x6016, (fpga_cs0_base+0x108));
-	iowrite32(0x6016, (fpga_cs0_base+0x10C));
+	iowrite32(0x581F, (fpga_cs0_base+0x100));
+	iowrite32(0x581F, (fpga_cs0_base+0x104));
+	iowrite32(0x581F, (fpga_cs0_base+0x108));
+	iowrite32(0x581F, (fpga_cs0_base+0x10C));
 
-	printk(KERN_INFO "grid: Lophilo FPGA (grid) initialized SysID: 0x%08X", (int)(ioread32(fpga_cs0_base)));
+	printk(KERN_INFO "grid: Lophilo FPGA (grid) initialized, SysID: 0x%08X", (int)(ioread32(fpga_cs0_base)));
 }
 
 static struct platform_device *devices[] __initdata = {
