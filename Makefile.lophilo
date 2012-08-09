@@ -45,8 +45,12 @@ export RSYNC:=rsync -avz --exclude="*.log" --exclude="*.pid" --exclude="*.leases
 
 .PHONY: clean config menuconfig version kernel debian install-debian install-squeeze1 backup archive-source archive-image firmware linux-src linux-src-git
 
-all:
-	echo `dirname ${CROSS_COMPILE}`
+all: firmware setup-nfs-dir
+	@echo "Cross-compilation source: ${CROSS_COMPILE}"
+	@echo "Firmware output location: ${FIRMWARE_DIRNAME}"
+	@echo "Standard zImage location: ${STANDARD_IMAGE}"
+	@echo "Debug zImage location: ${DEBUG_IMAGE}"
+	@echo "Lophilo OS directory: ${TARGET_NFS_INSTALL_DIR}"
 
 #
 # Standard kernel 
@@ -101,7 +105,7 @@ ${DEBUG_IMAGE}: ${KCONFIG_CONFIG_DEBUG}
 ${FIRMWARE_DIRNAME}/src/linux-src-${GITDESCRIBE}.zip: ${STANDARD_IMAGE}
 	mkdir -p ${FIRMWARE_DIRNAME}/src
 	git archive HEAD --format=zip > $@
-	echo "find the linux src archive in $@"
+	@echo "find the linux src archive in $@"
 
 linux-src: ${FIRMWARE_DIRNAME}/src/linux-src-${GITDESCRIBE}.zip
 
@@ -110,7 +114,7 @@ ${HOME}/src/linux-src-git-${GITDESCRIBE}.tgz: ${STANDARD_IMAGE}
 	mkdir -p ${HOME}/src
 	git clone -l . ${HOME}/src/linux-src-git-${GITDESCRIBE}
 	tar cvfz ${HOME}/src/linux-src-git-${GITDESCRIBE} $@
-	echo "find the linux src git archive in $@"
+	@echo "find the linux src git archive in $@"
 
 linux-src-git: ${HOME}/src/linux-src-git-${GITDESCRIBE}.tgz
 
@@ -123,7 +127,7 @@ firmware: ${STANDARD_IMAGE} ${DEBUG_IMAGE}
 	cp ${VMLINUX_IMAGE} ${FIRMWARE_DIRNAME}/
 	cp ${DEBUG_VMLINUX_IMAGE} ${FIRMWARE_DIRNAME}/vmlinux-debug
 	git describe > ${FIRMWARE_DIRNAME}/kernel.txt
-	echo "Don't forget to generate a source archive with: makel linux-src"
+	@echo "Don't forget to generate a source archive with: makel linux-src"
 
 #
 # setup TARGET_INSTALL_DIR
